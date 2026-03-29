@@ -178,6 +178,7 @@
   },
   "active": "364aa3306bcd2090",
   "lastOpenFiles": [
+    "shimono-tools/seesaa_history.py",
     "shimono-tools/seesaa_scraper.py",
     "shimono-tools/config.py",
     "shimono-tools/requirements.txt",
@@ -190,7 +191,6 @@
     "inbox/shimono_knowledge_v1.docx",
     "ops/sessions/20260329-185156.json",
     "ops/sessions/20260329-184332.json",
-    "ops/queue/queue.json.tmp.33396.1774777324646",
     "ops/queue/danetsuketsu-assembler-ch21-001.md",
     "inbox/20260329-danetsuketsu-assembler-ch21.md",
     "CLAUDE.md",
