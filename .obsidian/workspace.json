@@ -178,6 +178,7 @@
   },
   "active": "364aa3306bcd2090",
   "lastOpenFiles": [
+    "shimono-tools/seesaa_scraper.py",
     "shimono-tools/config.py",
     "shimono-tools/requirements.txt",
     "shimono-tools/data",
@@ -192,7 +193,6 @@
     "ops/queue/queue.json.tmp.33396.1774777324646",
     "ops/queue/danetsuketsu-assembler-ch21-001.md",
     "inbox/20260329-danetsuketsu-assembler-ch21.md",
-    "inbox/20260329-danetsuketsu-assembler-ch21.md.tmp.33396.1774777315514",
     "CLAUDE.md",
     "ai-lain/index.md",
     "ops/methodology/derivation-rationale.md",
