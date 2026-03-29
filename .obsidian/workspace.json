@@ -178,6 +178,7 @@
   },
   "active": "364aa3306bcd2090",
   "lastOpenFiles": [
+    "shimono-tools/compare.py",
     "shimono-tools/miraheze_client.py",
     "shimono-tools/seesaa_history.py",
     "shimono-tools/seesaa_scraper.py",
@@ -190,7 +191,6 @@
     "ops/sessions/20260329-192636.json",
     "inbox/shikabaton_rag_design.md",
     "inbox/shimono_knowledge_v1.docx",
-    "ops/sessions/20260329-185156.json",
     "ops/queue/danetsuketsu-assembler-ch21-001.md",
     "inbox/20260329-danetsuketsu-assembler-ch21.md",
     "CLAUDE.md",
