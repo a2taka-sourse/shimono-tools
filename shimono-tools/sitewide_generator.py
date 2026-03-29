@@ -138,7 +138,13 @@ def generate_js() -> str:
     /* ─────────────────────────────────────────────────────────── */
 
     /* 閲覧ページ以外では実行しない（エディターでwikitextが壊れるため） */
-    if (mw.config.get('wgAction') !== 'view') return;
+    /* URL の ?action= と wgAction の両方を確認（VisualEditor 等のカバーのため） */
+    var _action = mw.config.get('wgAction');
+    var _search = window.location.search;
+    if (_action !== 'view') return;
+    if (_search.indexOf('action=edit') !== -1) return;
+    if (_search.indexOf('action=submit') !== -1) return;
+    if (document.querySelector('.ve-active, .ve-ui-surface')) return;
 
     var content = document.getElementById('mw-content-text');
     if (!content) return;
