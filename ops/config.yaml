@@ -1,0 +1,74 @@
+# ops/config.yaml — edit these to adjust your system
+# See ops/derivation.md for WHY each choice was made
+
+dimensions:
+  granularity: moderate
+  organization: light-hierarchy
+  linking: explicit
+  processing: heavy
+  navigation: 3-tier
+  maintenance: condition-based
+  schema: moderate-dense
+  automation: full
+
+features:
+  semantic-search: false          # set to true and install qmd to enable
+  processing-pipeline: true
+  sleep-processing: false
+  voice-capture: false
+
+processing_tier: auto             # auto | 1 | 2 | 3 | 4
+
+processing:
+  depth: standard                 # deep | standard | quick
+  chaining: suggested             # manual | suggested | automatic
+  extraction:
+    selectivity: moderate         # strict | moderate | permissive
+    categories:                   # domain-specific extraction categories per project
+      ctf:
+        - techniques              # reusable patterns, methods, approaches
+        - challenge-writeups      # per-challenge solution notes
+        - study-notes             # from Japanese technical books
+        - open-problems           # unresolved technique questions
+      shimono:
+        - design-decisions        # choices made with rationale
+        - simulation-notes        # NeuralGCM/JAX pipeline choices
+        - content-segments        # video/podcast debate topics
+        - world-facts             # established canon facts
+        - open-questions          # unresolved design questions
+      ai-lain:
+        - architecture-decisions  # RAG, memory, context structure choices
+        - implementation-notes    # Claude API, pixel UI specifics
+        - aesthetic-notes         # Lain/Love Plus+ design choices
+        - open-problems           # blocked or unresolved design questions
+  verification:
+    description_test: true
+    schema_check: true
+    link_check: true
+  reweave:
+    scope: related                # related | broad | full
+    frequency: after_create       # after_create | periodic | manual
+
+provenance: full                  # full | minimal | off
+
+personality:
+  enabled: true
+  warmth: warm
+  opinionatedness: opinionated
+  formality: casual
+  emotional_awareness: task-focused
+
+research:
+  primary: web-search
+  fallback: web-search
+  last_resort: web-search
+  default_depth: moderate
+
+maintenance_conditions:
+  inbox_age_days: 3
+  orphan_notes: true
+  dangling_links: true
+  observation_threshold: 10
+  tension_threshold: 5
+  hub_size_threshold: 40
+  stale_batch_sessions: 2
