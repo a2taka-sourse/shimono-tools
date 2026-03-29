@@ -21,53 +21,63 @@ from config import (
 )
 
 
-def _get(url: str) -> BeautifulSoup:
-    resp = requests.get(url, timeout=30, headers={"User-Agent": "ShimonoBot/1.0"})
-    resp.encoding = SEESAA_ENCODING
-    resp.raise_for_status()
-    time.sleep(REQUEST_DELAY)
-    return BeautifulSoup(resp.text, "html.parser")
+def _get(url: str, retries: int = 3) -> BeautifulSoup:
+    """Fetch URL with retry on 5xx errors."""
+    for attempt in range(retries):
+        try:
+            resp = requests.get(url, timeout=30, headers={"User-Agent": "ShimonoBot/1.0"})
+            resp.encoding = SEESAA_ENCODING
+            resp.raise_for_status()
+            time.sleep(REQUEST_DELAY)
+            return BeautifulSoup(resp.text, "html.parser")
+        except requests.HTTPError as e:
+            if e.response.status_code >= 500 and attempt < retries - 1:
+                wait = 3 * (attempt + 1)
+                print(f"    {e.response.status_code} — {wait}秒待ってリトライ ({attempt+1}/{retries-1})")
+                time.sleep(wait)
+            else:
+                raise
 
 
 def get_article_list() -> list[dict]:
     """
     Scrape all article titles from the /l/ index pages.
-    Handles pagination automatically.
+
+    SeesaaWiki pagination format (confirmed by inspection):
+      Page 1: /l/
+      Page N: /l/?p={N-1}&order=lastupdate&on_desc=1
+    Each page shows up to 100 articles. Pagination link text = "次の100件".
     """
     articles = []
     seen_titles: set[str] = set()
+    next_url: str | None = SEESAA_LIST
     page = 1
 
-    while True:
-        url = SEESAA_LIST if page == 1 else f"{SEESAA_LIST}?page={page}"
-        print(f"  記事一覧 page {page}: {url}")
+    while next_url:
+        print(f"  記事一覧 page {page}: {next_url}")
 
         try:
-            soup = _get(url)
+            soup = _get(next_url)
         except requests.HTTPError as e:
-            print(f"  HTTP {e.response.status_code} — ページ終端と判断")
+            print(f"  HTTP {e.response.status_code} — 終端と判断")
             break
 
-        # SeesaaWiki /l/ lists articles as links containing /d/
+        # Parse all /d/ article links on this page
         raw_links = soup.select(f'a[href*="/{SEESAA_WIKI}/d/"]')
-
-        # Filter out edit/history/etc. links — keep only article links
         new_found = 0
+
         for a in raw_links:
             href = a.get("href", "")
-            # Must match exactly /WIKI/d/TITLE (no trailing path segments)
             m = re.match(rf".*/{re.escape(SEESAA_WIKI)}/d/([^/?#]+)$", href)
             if not m:
                 continue
 
             encoded_name = m.group(1)
-            # Decode EUC-JP URL encoding
             try:
                 title = unquote(encoded_name, encoding=SEESAA_ENCODING)
             except Exception:
                 title = unquote(encoded_name)
 
-            # Skip MenuBar, FrontPage, and other system pages
             if title in seen_titles or title.startswith(("MenuBar", "SideBar")):
                 continue
 
@@ -81,14 +91,19 @@ def get_article_list() -> list[dict]:
 
         print(f"  → {new_found}件追加 (累計 {len(articles)}件)")
 
-        if new_found == 0:
-            break
-
-        # Check for next-page link
-        next_link = soup.find("a", string=re.compile(r"次[のへ]?|Next|>>"))
-        if not next_link:
-            break
-        page += 1
+        # Follow the "次の100件" link specifically (not "前の100件")
+        # SeesaaWiki has both prev/next links; match by link text, not just href
+        next_a = None
+        for a in soup.find_all("a", href=re.compile(r"/l/\?p=\d+")):
+            if "次" in a.get_text():
+                next_a = a
+                break
+        if next_a and new_found > 0:
+            href = next_a.get("href", "")
+            next_url = urljoin("https://seesaawiki.jp", href)
+            page += 1
+        else:
+            next_url = None  # no more pages
 
     return articles
 

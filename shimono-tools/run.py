@@ -3,21 +3,24 @@
 shimono-tools — SeesaaWiki → Miraheze移行トラッカー & 下腦世界史データ整備
 
 コマンド:
-  list      SeesaaWikiとMirahezeの記事一覧を取得
-  compare   両Wikiを突き合わせて移行状況を生成
-  preview   移行状況wikitextをローカルに出力（Botなしで確認可）
-  publish   移行状況ページをMirahezeに反映（Bot設定が必要）
-  corpus    SeesaaWiki全文取得（RAGコーパス用・時間がかかる）
-  history   SeesaaWiki編集履歴取得（重要変更史用）
-  world     動的全史CSVを構造化データに変換
-  all       list + compare + preview を一括実行
+  list        SeesaaWikiとMirahezeの記事一覧を取得
+  compare     両Wikiを突き合わせて移行状況を生成
+  preview     移行状況wikitextをローカルに出力（Botなしで確認可）
+  publish     移行状況ページをMirahezeに反映（Bot設定が必要）
+  corpus      SeesaaWiki全文取得（RAGコーパス用・時間がかかる）
+  history     SeesaaWiki編集履歴取得（重要変更史用）
+  world       動的全史CSVを構造化データに変換
+  sitewide    Common.css/jsを生成→プレビュー or Mirahezeに反映
+  all         list + compare + preview を一括実行
 
 使い方:
   python run.py all
   python run.py list
   python run.py compare
   python run.py preview
-  python run.py publish      # .envにBot認証情報が必要
+  python run.py publish        # .envにBot認証情報が必要
+  python run.py sitewide       # CSS/JSをdata/に生成（手動コピー用）
+  python run.py sitewide push  # interface-admin付与後にBot経由でプッシュ
   python run.py world
 """
 import sys
@@ -69,6 +72,14 @@ def cmd_world():
     convert()
 
 
+def cmd_sitewide():
+    from sitewide_generator import push_sitewide, preview_sitewide
+    if len(sys.argv) > 2 and sys.argv[2] == "push":
+        push_sitewide()
+    else:
+        preview_sitewide()
+
+
 def cmd_all():
     cmd_list()
     cmd_compare()
@@ -84,14 +95,15 @@ def _require(path: str, name: str):
 
 
 COMMANDS = {
-    "list":    cmd_list,
-    "compare": cmd_compare,
-    "preview": cmd_preview,
-    "publish": cmd_publish,
-    "corpus":  cmd_corpus,
-    "history": cmd_history,
-    "world":   cmd_world,
-    "all":     cmd_all,
+    "list":     cmd_list,
+    "compare":  cmd_compare,
+    "preview":  cmd_preview,
+    "publish":  cmd_publish,
+    "corpus":   cmd_corpus,
+    "history":  cmd_history,
+    "world":    cmd_world,
+    "sitewide": cmd_sitewide,
+    "all":      cmd_all,
 }
 
 if __name__ == "__main__":

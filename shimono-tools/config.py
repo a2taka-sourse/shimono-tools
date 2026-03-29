@@ -25,8 +25,9 @@ WORLD_JSON      = DATA_DIR / "world_history.json"
 WORLD_CSV_OUT   = DATA_DIR / "world_history_structured.csv"
 WORLD_CSV_IN    = INBOX_DIR / "架空世界動的全史 - シート1.csv"
 
-# Miraheze visualization page title
-MIGRATION_PAGE_TITLE = "下腦Wiki移行状況"
+# Miraheze visualization page title and category
+MIGRATION_PAGE_TITLE    = "移行状況"
+MIGRATION_PAGE_CATEGORY = "Project"
 
 # Articles on Miraheze that are NOT migrated from SeesaaWiki
 # (Twitter archives, YouTube lists, etc.)

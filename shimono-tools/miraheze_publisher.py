@@ -14,10 +14,56 @@ from pathlib import Path
 
 import requests
 
-from config import MIRAHEZE_API, MIRAHEZE_WIKI, DATA_DIR, MIGRATION_PAGE_TITLE
+from config import MIRAHEZE_API, MIRAHEZE_WIKI, DATA_DIR, MIGRATION_PAGE_TITLE, MIGRATION_PAGE_CATEGORY
 
 
-# ── Wikitext generation ──────────────────────────────────────────────────────
+# ── Visual helpers ───────────────────────────────────────────────────────────
+
+BAR_FILLED  = "█"
+BAR_EMPTY   = "░"
+BAR_WIDTH   = 40  # characters
+
+# Colour palette (MediaWiki inline CSS)
+COLOR = {
+    "green":  "#4caf50",
+    "red":    "#ef5350",
+    "blue":   "#42a5f5",
+    "orange": "#ff9800",
+    "grey":   "#9e9e9e",
+    "bg":     "#e8e8e8",
+}
+
+
+def _ascii_bar(pct: float, width: int = BAR_WIDTH) -> str:
+    """Unicode block-character progress bar: [████░░░░░░] 41.4%"""
+    filled = round(pct / 100 * width)
+    empty  = width - filled
+    return f"[{BAR_FILLED * filled}{BAR_EMPTY * empty}]"
+
+
+def _html_bar(pct: float, color: str, height: str = "14px") -> str:
+    """Inline-CSS coloured bar (works in standard MediaWiki HTML)."""
+    pct = min(max(pct, 0), 100)
+    return (
+        f'<div style="background:{COLOR["bg"]};border-radius:3px;'
+        f'overflow:hidden;width:100%;height:{height};">'
+        f'<div style="background:{color};width:{pct:.1f}%;height:100%;"></div>'
+        f'</div>'
+    )
+
+
+def _chart_row(label: str, count: int, total: int, color: str,
+               note: str = "") -> str:
+    """One row of the bar chart table."""
+    pct = count / total * 100 if total else 0
+    note_wt = f" <small>({note})</small>" if note else ""
+    return (
+        f"|-\n"
+        f"| {label}{note_wt} || style='text-align:right' | '''{count}''' "
+        f"|| {_html_bar(pct, color)} "
+        f"|| style='text-align:right' | {pct:.1f}%"
+    )
+
 
 def _article_list_wikitext(articles: list[dict], key: str = "title",
                             link_type: str = "internal") -> str:
@@ -32,37 +78,108 @@ def _article_list_wikitext(articles: list[dict], key: str = "title",
     return "\n".join(lines) if lines else "（なし）"
 
 
-def generate_wikitext(status: dict) -> str:
-    s = status["stats"]
-    now = datetime.now().strftime("%Y-%m-%d %H:%M JST")
-    remaining_pct = round(100 - s["migration_pct"], 1)
+# ── Main wikitext generator ──────────────────────────────────────────────────
 
-    migrated_wt   = _article_list_wikitext(status["migrated"])
-    seesaa_wt     = _article_list_wikitext(status["seesaa_only"], link_type="external")
-    exclusive_wt  = _article_list_wikitext(status["miraheze_exclusive"])
-    new_wt        = _article_list_wikitext(status["miraheze_new"])
+def generate_wikitext(status: dict) -> str:
+    s   = status["stats"]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M JST")
+
+    pct_migrated = s["migration_pct"]
+    pct_remaining = round(100 - pct_migrated, 1)
+    total = s["seesaa_total"]
+
+    # ── ASCII art header bar ─────────────────────────────────────────────────
+    ascii_bar = _ascii_bar(pct_migrated)
+
+    # ── HTML progress bar (full-width, two-tone) ─────────────────────────────
+    html_progress = (
+        f'<div style="background:{COLOR["bg"]};border-radius:4px;'
+        f'overflow:hidden;width:100%;height:20px;font-size:0;">'
+        f'<div style="background:{COLOR["green"]};width:{pct_migrated:.1f}%;'
+        f'height:100%;display:inline-block;"></div>'
+        f'<div style="background:{COLOR["red"]};width:{pct_remaining:.1f}%;'
+        f'height:100%;display:inline-block;"></div>'
+        f'</div>'
+    )
+
+    # ── Bar chart table (2 separate charts with correct reference bases) ───────
+    # Chart 1: SeesaaWiki migration (reference = seesaa_total)
+    seesaa_chart_rows = "\n".join([
+        _chart_row("✓ 移行済み", s["migrated"],    total, COLOR["green"]),
+        _chart_row("⏳ 未移行",  s["seesaa_only"], total, COLOR["red"]),
+    ])
+
+    # Chart 2: Miraheze-side content (reference = miraheze total)
+    miraheze_total = s["miraheze_exclusive"] + s["miraheze_new"]
+    miraheze_chart_rows = "\n".join([
+        _chart_row("🔵 Miraheze独自（排他）", s["miraheze_exclusive"], miraheze_total,
+                   COLOR["blue"],   "Twitter/YouTube等"),
+        _chart_row("✨ Miraheze新規",          s["miraheze_new"],       miraheze_total,
+                   COLOR["orange"], "旧Wiki非対象"),
+    ])
+    miraheze_chart_total_label = miraheze_total or 1  # avoid div-by-zero display
+
+    # ── Compact summary box ───────────────────────────────────────────────────
+    summary_box = (
+        f'<div style="border:2px solid {COLOR["green"]};border-radius:6px;'
+        f'padding:1em;background:#f9fff9;font-family:monospace;">\n'
+        f"'''移行進捗 — {s['migrated']} / {total} 記事'''\n\n"
+        f"{ascii_bar} {pct_migrated}%\n\n"
+        f"旧SeesaaWiki基準。未移行: {s['seesaa_only']}件\n"
+        f'</div>'
+    )
+
+    # ── Article lists ─────────────────────────────────────────────────────────
+    migrated_wt  = _article_list_wikitext(status["migrated"])
+    seesaa_wt    = _article_list_wikitext(status["seesaa_only"], link_type="external")
+    exclusive_wt = _article_list_wikitext(status["miraheze_exclusive"])
+    new_wt       = _article_list_wikitext(status["miraheze_new"])
 
     return f"""\
 <!-- この記事は自動生成されます。編集しても次回更新時に上書きされます。 -->
 == 下腦Wiki 移行状況ダッシュボード ==
 ''自動生成 — 最終更新: {now}''
 
-=== 概要 ===
-旧Wikiからの記事移行の進捗状況です。
+----
 
-{{| class="wikitable" style="text-align:center; width:60%"
-! 種別 !! 件数 !! 割合
-|-
-| style="text-align:left" | '''✓ 移行済み''' || '''{ s['migrated'] }''' || '''{s['migration_pct']}%'''
-|-
-| style="text-align:left" | ⏳ 未移行（SeesaaWikiのみ） || {s['seesaa_only']} || {remaining_pct}%
-|-
-| style="text-align:left" | 🐦 Miraheze独自（Twitter/YouTube等） || {s['miraheze_exclusive']} || —
-|-
-| style="text-align:left" | ✨ Miraheze新規記事 || {s['miraheze_new']} || —
-|-
-! 合計 (SeesaaWiki基準) !! {s['seesaa_total']} !! 100%
+{summary_box}
+
+{html_progress}
+
+----
+
+=== SeesaaWiki → Miraheze 移行チャート ===
+''基準: 旧SeesaaWiki {total}記事''
+
+{{| class="wikitable" style="width:100%"
+! 種別 !! 件数 !! グラフ ({total}件 = 100%) !! ％
+{seesaa_chart_rows}
 |}}
+
+=== Mirahezeコンテンツ内訳チャート ===
+''基準: Miraheze独自ページ {miraheze_total}記事''
+
+{{| class="wikitable" style="width:100%"
+! 種別 !! 件数 !! グラフ ({miraheze_total}件 = 100%) !! ％
+{miraheze_chart_rows}
+|}}
+
+=== 全体サマリー ===
+{{| class="wikitable" style="text-align:center; width:50%"
+! 種別 !! 件数
+|-
+| style="text-align:left;background:#e8f5e9" | ✓ 移行済み || '''{s['migrated']}'''
+|-
+| style="text-align:left;background:#ffebee" | ⏳ 未移行 || {s['seesaa_only']}
+|-
+| style="text-align:left;background:#e3f2fd" | 🔵 Miraheze独自（排他） || {s['miraheze_exclusive']}
+|-
+| style="text-align:left;background:#fff3e0" | ✨ Miraheze新規 || {s['miraheze_new']}
+|-
+! SeesaaWiki総数 !! {total}
+|}}
+
+----
 
 === 移行済み記事 ({s['migrated']}件) ===
 {migrated_wt}
@@ -79,7 +196,7 @@ def generate_wikitext(status: dict) -> str:
 ==== 新規記事 ({s['miraheze_new']}件) ====
 {new_wt}
 
-[[Category:管理]]
+[[Category:{MIGRATION_PAGE_CATEGORY}]]
 """
 
 

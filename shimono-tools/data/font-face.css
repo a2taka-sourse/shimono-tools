@@ -1,0 +1,14 @@
+/* ================================================================
+ * 下腦Wiki — U+FA19 旧字体フォント
+ *
+ * Source: SourceHanSerifJP-Regular.otf
+ * U+FA19 (神の旧字体) の1グリフのみを収録したサブセット。
+ * unicode-range 指定により U+FA19 を含む要素にのみ適用される。
+ *
+ * CDN: https://cdn.jsdelivr.net/gh/a2taka-sourse/shimono-tools@main/data/shimono-kami-fa19.otf
+ * ================================================================ */
+@font-face {
+    font-family: 'ShimonoKami';
+    src: url('https://cdn.jsdelivr.net/gh/a2taka-sourse/shimono-tools@main/data/shimono-kami-fa19.otf') format('opentype');
+    unicode-range: U+FA19;
+}

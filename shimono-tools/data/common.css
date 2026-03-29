@@ -1,0 +1,32 @@
+/* ================================================================
+ * 下腦Wiki — U+FA19 旧字体フォント
+ *
+ * Source: SourceHanSerifJP-Regular.otf
+ * U+FA19 (神の旧字体) の1グリフのみを収録したサブセット。
+ * unicode-range 指定により U+FA19 を含む要素にのみ適用される。
+ *
+ * CDN: https://cdn.jsdelivr.net/gh/a2taka-sourse/shimono-tools@main/data/shimono-kami-fa19.otf
+ * ================================================================ */
+@font-face {
+    font-family: 'ShimonoKami';
+    src: url('https://cdn.jsdelivr.net/gh/a2taka-sourse/shimono-tools@main/data/shimono-kami-fa19.otf') format('opentype');
+    unicode-range: U+FA19;
+}
+
+/* ================================================================
+ * 下腦Wiki — 旧字体表示用フォント設定
+ *
+ * JS が 神 (U+795E) を U+FA19 (CJK Compatibility Ideograph) に置換。
+ * ShimonoKami フォント (@font-face) が U+FA19 にのみ適用され、
+ * 旧字体グリフ (示 radical 形) を確実に表示する。
+ *
+ * ⚠ 以前に追加した全体明朝体ルールがあれば削除してください。
+ * ================================================================ */
+.shimono-kami {
+    font-family:
+        'ShimonoKami',
+        "IPAmjMincho",
+        "Yu Mincho", "YuMincho", "游明朝",
+        "Hiragino Mincho ProN", "HiraMinProN-W3",
+        serif !important;
+}

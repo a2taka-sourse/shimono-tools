@@ -16,13 +16,32 @@ from pathlib import Path
 from config import DATA_DIR, MIRAHEZE_EXCLUSIVE_PATTERNS
 
 
+# SeesaaWiki uses JIS X 0213 characters that Miraheze normalizes to modern forms.
+# Map old/variant forms → modern Unicode equivalents for title matching.
+# These substitutions apply ONLY to comparison — display titles are unchanged.
+CHAR_NORMALIZE: dict[str, str] = {
+    "\u85ed": "神",   # 藭 (U+85ED, JIS X 0213 旧字体) → 神
+    # Add more mappings here as new collisions are discovered
+}
+
+
 def _normalize(title: str) -> str:
-    """Normalize title for fuzzy matching."""
+    """
+    Normalize title for fuzzy matching.
+    Handles:
+      - leading/trailing whitespace
+      - underscore ↔ space
+      - namespace prefix stripping
+      - JIS X 0213 旧字体 → modern Unicode substitution (e.g. 藭→神)
+    """
     title = title.strip().replace("_", " ")
     # Strip namespace prefixes
     for ns in ("Category:", "Template:", "Help:", "MediaWiki:", "File:"):
         if title.startswith(ns):
             return ""
+    # Apply character normalization (旧字体 → 新字体)
+    for old, new in CHAR_NORMALIZE.items():
+        title = title.replace(old, new)
     return title.lower()
 
 

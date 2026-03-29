@@ -1,5 +1,10 @@
 .env
 data/*.json
 data/*.csv
+data/*.wiki
+data/*.txt
+data/test_*.html
 __pycache__/
 *.pyc
+SourceHanSerifJP-Regular.otf
+IPAmjMincho.ttf
