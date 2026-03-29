@@ -137,9 +137,8 @@ def generate_js() -> str:
     }};
     /* ─────────────────────────────────────────────────────────── */
 
-    /* 編集・プレビュー画面では実行しない（wikitextが壊れるため） */
-    var action = mw.config.get('wgAction');
-    if (action === 'edit' || action === 'submit') return;
+    /* 閲覧ページ以外では実行しない（エディターでwikitextが壊れるため） */
+    if (mw.config.get('wgAction') !== 'view') return;
 
     var content = document.getElementById('mw-content-text');
     if (!content) return;
