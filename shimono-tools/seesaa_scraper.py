@@ -114,8 +114,8 @@ def get_article_content(article: dict) -> dict:
 
     # SeesaaWiki content area — try common selectors in priority order
     content_div = (
-        soup.find("div", id="content_block_0")
-        or soup.find("div", class_="wiki-content")
+        soup.find("div", id="page-body")
+        or soup.find("div", id="content_block_0")
         or soup.find("div", id="main")
         or soup.find("article")
     )

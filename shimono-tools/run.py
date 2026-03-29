@@ -72,6 +72,12 @@ def cmd_world():
     convert()
 
 
+def cmd_review():
+    from review_queue import review_loop
+    reset = len(sys.argv) > 2 and sys.argv[2] == "--reset"
+    review_loop(reset=reset)
+
+
 def cmd_sitewide():
     from sitewide_generator import push_sitewide, preview_sitewide
     if len(sys.argv) > 2 and sys.argv[2] == "push":
@@ -103,6 +109,7 @@ COMMANDS = {
     "history":  cmd_history,
     "world":    cmd_world,
     "sitewide": cmd_sitewide,
+    "review":   cmd_review,
     "all":      cmd_all,
 }
 
