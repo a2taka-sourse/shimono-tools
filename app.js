@@ -5,6 +5,17 @@ const WIKI = {
   articleBase: "https://shikabaton.miraheze.org/wiki/"
 };
 
+const HOME_FOLDERS = [
+  { title: "Category:架空国家一覧", label: "国家", description: "国家と政体をめぐる" },
+  { title: "Category:架空人物一覧", label: "人物", description: "人物の記録を読む" },
+  { title: "Category:歴史", label: "歴史", description: "出来事と時代" },
+  { title: "Category:地理", label: "地理", description: "大陸と地域" },
+  { title: "Category:軍事", label: "軍事", description: "組織と装備" },
+  { title: "Category:メディア", label: "メディア", description: "画像と映像資料" },
+  { title: "Category:ニュース", label: "ニュース", description: "報道と更新" },
+  { title: "Category:架空戦争・紛争・事件一覧", label: "事件", description: "戦争・紛争・事件" }
+];
+
 const windows = document.querySelector("#windows");
 const tasks = document.querySelector("#task-buttons");
 const template = document.querySelector("#window-template");
@@ -34,8 +45,39 @@ function pageUrl(title) {
   return `${WIKI.articleBase}${encodeURIComponent(title.replaceAll(" ", "_"))}`;
 }
 
+function absoluteMediaUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("//")) return `https:${url}`;
+  if (url.startsWith("/")) return new URL(url, WIKI.home).href;
+  return url;
+}
+
+function setRoute(key, value) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  if (key && value) url.searchParams.set(key, value);
+  history.replaceState(null, "", url);
+}
+
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function addShareButton(toolbar, key, value, status) {
+  const share = document.createElement("button");
+  share.textContent = "共有";
+  share.onclick = async () => {
+    const url = new URL(window.location.href);
+    url.search = "";
+    if (key && value) url.searchParams.set(key, value);
+    try {
+      await navigator.clipboard.writeText(url.href);
+      status.textContent = "共有リンクをコピーしました";
+    } catch {
+      window.prompt("このリンクをコピーしてください", url.href);
+    }
+  };
+  toolbar.append(share);
 }
 
 function activate(win) {
@@ -123,15 +165,78 @@ function openCategories(categoryTitle) {
   loadCategory(view, categoryTitle, []);
 }
 
+function openHome() {
+  const view = makeWindow(`${WIKI.name} - ホーム`, { width: 790, height: 560, left: 110, top: 44 });
+  setRoute(null, null);
+  setToolbar(view.toolbar, ["ホーム"], null);
+  addShareButton(view.toolbar, null, null, view.status);
+  view.body.innerHTML = `
+    <section class="explorer-home">
+      <header class="home-hero">
+        <h3>しかバトン Wiki</h3>
+        <p>世界の記録を選んでください</p>
+      </header>
+      <h4>主要フォルダー</h4>
+      <div class="home-grid"></div>
+      <div class="home-section-heading">
+        <h4>写真のある資料</h4>
+        <button class="xp-button all-folders" type="button">すべてのカテゴリ</button>
+      </div>
+      <div class="featured-grid"><div class="loading">資料を探しています...</div></div>
+    </section>`;
+  const homeGrid = view.body.querySelector(".home-grid");
+  HOME_FOLDERS.forEach(folder => {
+    const button = document.createElement("button");
+    button.className = "home-folder";
+    button.innerHTML = `<span class="home-folder-icon" aria-hidden="true"></span><strong>${escapeHtml(folder.label)}</strong><small>${escapeHtml(folder.description)}</small>`;
+    button.onclick = () => openCategories(folder.title);
+    homeGrid.append(button);
+  });
+  view.body.querySelector(".all-folders").onclick = () => openCategories(null);
+  loadFeatured(view);
+}
+
+async function loadFeatured(view) {
+  const featured = view.body.querySelector(".featured-grid");
+  try {
+    const changes = await api({
+      list: "recentchanges",
+      rcnamespace: "0",
+      rclimit: "30",
+      rcprop: "title",
+      rcshow: "!bot"
+    });
+    const titles = [...new Set(changes.query.recentchanges.map(change => change.title))];
+    const thumbnails = await loadThumbnails(titles, 220);
+    const pages = titles.filter(title => thumbnails.has(title)).slice(0, 4);
+    featured.replaceChildren();
+    if (!pages.length) {
+      featured.innerHTML = '<div class="empty">画像付き資料はまだ見つかりませんでした。</div>';
+      return;
+    }
+    pages.forEach(title => {
+      const button = document.createElement("button");
+      button.className = "featured-item";
+      button.innerHTML = `<img src="${escapeHtml(thumbnails.get(title))}" alt=""><span>${escapeHtml(title)}</span>`;
+      button.onclick = () => openArticle(title);
+      featured.append(button);
+    });
+  } catch (error) {
+    featured.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
 async function loadCategory(view, categoryTitle, history) {
   view.body.innerHTML = '<div class="loading">フォルダーを読み込んでいます...</div>';
   const title = categoryTitle ? categoryTitle.replace(/^Category:/, "") : "カテゴリ";
+  setRoute("category", categoryTitle || "all");
   view.win.querySelector("h2").textContent = `${title} - ${WIKI.name}`;
   view.task.textContent = title;
   setToolbar(view.toolbar, [...history.map(item => item.label), title], history.length ? () => {
     const previous = history[history.length - 1];
     loadCategory(view, previous.title, history.slice(0, -1));
   } : null);
+  addShareButton(view.toolbar, "category", categoryTitle || "all", view.status);
   try {
     let items;
     if (!categoryTitle) {
@@ -153,6 +258,10 @@ async function loadCategory(view, categoryTitle, history) {
         label: item.title.replace(/^Category:/, ""),
         type: item.ns === 14 ? "subcat" : "page"
       }));
+      const articleImages = await loadThumbnails(items.filter(item => item.type === "page").map(item => item.title), 110);
+      items.forEach(item => {
+        item.thumbnail = articleImages.get(item.title);
+      });
     }
 
     if (!items.length) {
@@ -164,7 +273,10 @@ async function loadCategory(view, categoryTitle, history) {
         const button = document.createElement("button");
         const category = item.type === "subcat";
         button.className = `file-item ${category ? "category" : "article"}`;
-        button.innerHTML = `<span class="file-icon"></span><span>${escapeHtml(item.label)}</span>`;
+        const visual = item.thumbnail
+          ? `<img class="file-thumbnail" src="${escapeHtml(item.thumbnail)}" alt="">`
+          : '<span class="file-icon"></span>';
+        button.innerHTML = `${visual}<span>${escapeHtml(item.label)}</span>`;
         button.ondblclick = () => {
           if (category) {
             loadCategory(view, item.title, [...history, { title: categoryTitle, label: title }]);
@@ -186,13 +298,41 @@ async function loadCategory(view, categoryTitle, history) {
   }
 }
 
+async function loadThumbnails(titles, size) {
+  if (!titles.length) return new Map();
+  const result = await api({
+    titles: titles.slice(0, 50).join("|"),
+    prop: "images",
+    imlimit: "1"
+  });
+  const imageByArticle = new Map((result.query.pages || [])
+    .filter(page => page.images?.length)
+    .map(page => [page.title, page.images[0].title]));
+  const imageTitles = [...new Set(imageByArticle.values())];
+  if (!imageTitles.length) return new Map();
+  const images = await api({
+    titles: imageTitles.join("|"),
+    prop: "imageinfo",
+    iiprop: "url",
+    iiurlwidth: String(size)
+  });
+  const sourceByImage = new Map((images.query.pages || [])
+    .filter(page => page.imageinfo?.[0]?.thumburl)
+    .map(page => [page.title, absoluteMediaUrl(page.imageinfo[0].thumburl)]));
+  return new Map([...imageByArticle]
+    .filter(([, imageTitle]) => sourceByImage.has(imageTitle))
+    .map(([articleTitle, imageTitle]) => [articleTitle, sourceByImage.get(imageTitle)]));
+}
+
 async function openArticle(title) {
   const view = makeWindow(`${title} - 記事`, { width: 760, height: 565 });
   setToolbar(view.toolbar, ["記事", title], null);
+  setRoute("page", title);
   const external = document.createElement("button");
   external.textContent = "元の記事";
   external.onclick = () => window.open(pageUrl(title), "_blank", "noopener");
   view.toolbar.append(external);
+  addShareButton(view.toolbar, "page", title, view.status);
   view.body.innerHTML = '<div class="loading">記事を開いています...</div>';
   try {
     const query = new URLSearchParams({
@@ -254,7 +394,42 @@ function sanitizeWikiContent(container) {
     if (src?.startsWith("//")) image.src = `https:${src}`;
     else if (src?.startsWith("/")) image.src = new URL(src, WIKI.home).href;
     else if (src && !/^https?:/i.test(src)) image.removeAttribute("src");
+    if (image.src) {
+      image.classList.add("viewable-image");
+      image.title = "クリックして画像ビューアーで開く";
+      image.tabIndex = 0;
+      image.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        openImageViewer(largestImageSource(image), image.alt || "画像");
+      };
+      image.onkeydown = event => {
+        if (event.key === "Enter") openImageViewer(largestImageSource(image), image.alt || "画像");
+      };
+    }
   });
+}
+
+function largestImageSource(image) {
+  const srcset = image.getAttribute("srcset");
+  if (!srcset) return image.src;
+  const candidates = srcset.split(",").map(item => item.trim().split(/\s+/)[0]);
+  return absoluteMediaUrl(candidates[candidates.length - 1] || image.src);
+}
+
+function openImageViewer(source, title) {
+  const view = makeWindow(`${title || "画像"} - 画像ビューアー`, { width: 760, height: 570 });
+  view.toolbar.innerHTML = '<span class="viewer-label">Windows 画像と FAX ビューア</span>';
+  const original = document.createElement("button");
+  original.textContent = "原寸を開く";
+  original.onclick = () => window.open(source, "_blank", "noopener");
+  view.toolbar.append(original);
+  view.body.className = "window-body image-viewer";
+  const image = document.createElement("img");
+  image.src = source;
+  image.alt = title || "Wiki画像";
+  view.body.replaceChildren(image);
+  view.status.textContent = "画像を表示しています";
 }
 
 function openSearch() {
@@ -340,6 +515,7 @@ Windows XP のデスクトップから、しかバトン Wiki を
 }
 
 const launchers = {
+  home: openHome,
   categories: () => openCategories(null),
   search: openSearch,
   changes: openChanges,
@@ -387,4 +563,8 @@ api({ meta: "siteinfo", siprop: "general" }).then(() => {
   connectionLight.className = "connection-light failed";
   connectionLight.title = "Wiki API に接続できません";
 });
-openReadme();
+
+const route = new URLSearchParams(window.location.search);
+if (route.has("page")) openArticle(route.get("page"));
+else if (route.has("category")) openCategories(route.get("category") === "all" ? null : route.get("category"));
+else openHome();
